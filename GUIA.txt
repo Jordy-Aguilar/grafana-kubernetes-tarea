@@ -1,0 +1,235 @@
+GUIA COMPLETA: GRAFANA + KUBERNETES SIN INSTALAR PROGRAMAS
+
+IMPORTANTE
+Los comandos de esta guia se ejecutan en la terminal Linux/Bash de Killercoda,
+no en PowerShell ni en la consola de tu computadora.
+Este paquete no contiene un despliegue ya ejecutado ni un repo ya publicado.
+Las capturas y los resultados deben obtenerse durante tu propia practica.
+Comprueba que Grafana no sea la plataforma ya vista en tu clase.
+
+0. PREPARAR ENTREGA ANTES DE INICIAR EL LABORATORIO
+- Extrae el ZIP en tu computadora.
+- Crea una cuenta gratuita en https://github.com si no tienes una.
+- Pulsa + > New repository.
+- Nombre: grafana-kubernetes-tarea. Visibilidad: Public. Create repository.
+- En el repo vacio, usa uploading an existing file. Si ya contiene archivos:
+  Add file > Upload files.
+- Arrastra los archivos de la carpeta extraida (no el ZIP). grafana.yaml e
+  instalar.sh deben quedar en la RAIZ del repositorio, no dentro de otra carpeta.
+- Pulsa Commit changes.
+- Comprueba que en la portada figuran grafana.yaml e instalar.sh.
+- Guarda la URL real: https://github.com/TU_USUARIO/grafana-kubernetes-tarea
+- No publiques la clave que usaras en Grafana.
+
+COMO TOMAR CAPTURAS
+En Windows: Win + Shift + S. Selecciona el area con el comando Y su salida,
+abre la captura desde su notificacion y guardala como PNG.
+En Grafana incluye la barra de direcciones y la interfaz.
+Usa zoom para que los nombres y numeros se lean. No recortes el resultado relevante.
+En cada figura del informe escribe que prueba, no solo 'captura de pantalla'.
+
+1. ABRIR EL CLUSTER
+- Entra en https://killercoda.com/playgrounds/scenario/kubernetes
+- Registrate/inicia sesion si te lo pide. Usa el Playground de Kubernetes.
+- Espera a que la terminal este lista. No cierres ni recargues la pestaña.
+- La sesion FREE dura hasta una hora; al vencer se pierde el entorno.
+- Ejecuta:
+
+kubectl cluster-info
+kubectl get nodes -o wide
+
+CAPTURA 01-cluster.png
+Tomala cuando los nodos esten Ready y se vea el control plane.
+Pie: 'Verificacion del cluster Kubernetes y estado Ready de sus nodos'.
+Si hay NotReady, espera y repite; no continues mientras el cluster no este listo.
+
+2. CLONAR Y MOSTRAR LA CONFIGURACION
+Reemplaza TU_USUARIO por tu usuario real de GitHub; no copies el marcador tal cual.
+
+git clone https://github.com/TU_USUARIO/grafana-kubernetes-tarea.git
+cd grafana-kubernetes-tarea
+ls
+cat grafana.yaml
+
+CAPTURA 02a-configuracion.png y 02b-servicio.png
+Muestra el Deployment: imagen, replicas: 1, selector y labels app: grafana.
+En otra captura muestra Service, type: NodePort, targetPort y nodePort: 30000.
+Puedes abrir grafana.yaml en GitHub para capturar el codigo con mayor comodidad.
+Pie: 'Configuracion declarativa del Deployment y exposicion mediante Service NodePort'.
+
+3. DESPLEGAR
+
+bash instalar.sh
+
+Cuando pida clave, escribe una clave temporal de al menos 12 caracteres y Enter.
+Mientras escribes NO aparecen caracteres: es normal. Guardala para iniciar sesion.
+No uses tu clave de correo/GitHub. No tomes captura de la clave.
+Espera 'successfully rolled out'. Luego ejecuta:
+
+kubectl -n tarea-grafana get deployment,rs,pods,svc
+
+CAPTURA 03-despliegue.png
+Debe verse Deployment READY 1/1, ReplicaSet DESIRED/CURRENT/READY 1 y Pod
+READY 1/1 STATUS Running; tambien el Service con 3000:30000/TCP.
+Pie: 'Deployment, ReplicaSet, Pod y Service creados correctamente'.
+
+4. PROBAR QUIEN CONTROLA A QUIEN
+
+kubectl -n tarea-grafana get rs -o custom-columns='REPLICASET:.metadata.name,CONTROLADOR:.metadata.ownerReferences[0].kind,NOMBRE:.metadata.ownerReferences[0].name'
+kubectl -n tarea-grafana get pods -o custom-columns='POD:.metadata.name,CONTROLADOR:.metadata.ownerReferences[0].kind,NOMBRE:.metadata.ownerReferences[0].name'
+
+CAPTURA 04-controladores.png
+La primera salida debe mostrar Deployment/grafana como propietario del ReplicaSet.
+La segunda debe mostrar ReplicaSet/grafana-... como propietario del Pod.
+Pie: 'Relacion Deployment -> ReplicaSet -> Pod mediante ownerReferences'.
+Explicacion: no se crea un ReplicaSet manual; el Deployment lo crea y administra.
+
+5. COMPROBAR EXPOSICION
+
+kubectl -n tarea-grafana get svc grafana -o wide
+curl -sS http://127.0.0.1:30000/api/health
+
+CAPTURA 05-exposicion.png
+Muestra Service NodePort y respuesta JSON con database: ok.
+Pie: 'Acceso HTTP al servicio Grafana a traves del puerto NodePort 30000'.
+Si curl falla, consulta SOLUCION DE PROBLEMAS al final.
+
+6. ABRIR GRAFANA DESDE EL NAVEGADOR
+- En el menu de la terminal de Killercoda (parte superior derecha), busca
+  Traffic / Ports o el selector de puertos.
+- Selecciona host controlplane si aparece mas de un host.
+- Introduce 30000 y abre el enlace generado.
+- NO escribas localhost:30000 en el navegador de tu computadora:
+  Kubernetes se ejecuta en el servidor remoto del laboratorio.
+- Usuario admin; clave: la que elegiste en instalar.sh.
+
+CAPTURA 06-grafana.png
+Tomala despues del login, mostrando Grafana funcionando y la barra de direcciones.
+Pie: 'Interfaz de Grafana accesible desde el navegador mediante la URL del laboratorio'.
+Si no puedes abrir la interfaz, no des por terminada la evidencia de exposicion.
+
+OPCIONAL: DASHBOARD DE DEMOSTRACION
+Hazlo AHORA, con una replica, antes del escalado.
+Busca Connections > Add new connection / Data sources > TestData.
+Agrega la fuente TestData; crea un dashboard con una visualizacion que use
+esa fuente y el escenario Random Walk. Guarda como 'Demo Kubernetes'.
+La ubicacion exacta de botones puede variar con la version/interfaz.
+CAPTURA 06b-dashboard.png: grafico y titulo visibles.
+Indica expresamente: datos sinteticos de TestData, no metricas reales del cluster.
+Este paso es opcional y no sustituye las pruebas de Kubernetes.
+
+7. ESCALAR DE UNO A TRES PODS
+
+kubectl -n tarea-grafana scale deployment grafana --replicas=3
+kubectl -n tarea-grafana rollout status deployment/grafana --timeout=300s
+kubectl -n tarea-grafana get deployment,rs,pods
+
+CAPTURA 07-escalado.png
+Debe verse Deployment READY 3/3, ReplicaSet DESIRED/CURRENT/READY 3 y tres Pods
+Running, cada uno READY 1/1. No captures como resultado final mientras cargan.
+Pie: 'Escalado horizontal de una a tres replicas mediante el Deployment'.
+No vuelvas a aplicar grafana.yaml durante esta prueba: contiene replicas: 1.
+Escalar replicas sin cambiar la plantilla no crea por si solo un nuevo ReplicaSet.
+
+8. DEMOSTRAR AUTORRECUPERACION
+Primero guarda el nombre y UID de uno de los Pods y muestra los tres actuales:
+
+POD_ANTES=$(kubectl -n tarea-grafana get pods -l app=grafana -o jsonpath='{.items[0].metadata.name}')
+UID_ANTES=$(kubectl -n tarea-grafana get pod "$POD_ANTES" -o jsonpath='{.metadata.uid}')
+printf 'Pod a eliminar: %s\nUID anterior: %s\n' "$POD_ANTES" "$UID_ANTES"
+kubectl -n tarea-grafana get pods -o custom-columns='POD:.metadata.name,UID:.metadata.uid,ESTADO:.status.phase'
+
+CAPTURA 08a-antes.png
+Muestra la lista y el nombre/UID que se va a eliminar.
+Luego ejecuta:
+
+kubectl -n tarea-grafana delete pod "$POD_ANTES"
+kubectl -n tarea-grafana rollout status deployment/grafana --timeout=300s
+printf 'Pod eliminado: %s\nUID eliminado: %s\n' "$POD_ANTES" "$UID_ANTES"
+kubectl -n tarea-grafana get pods -o custom-columns='POD:.metadata.name,UID:.metadata.uid,ESTADO:.status.phase'
+kubectl -n tarea-grafana get deployment,rs,pods
+
+CAPTURA 08b-despues.png
+Muestra un nombre/UID nuevo y el retorno a tres Pods listos.
+Si aun aparece Terminating o READY menor que 3, espera y repite los dos get.
+Pie: 'El ReplicaSet crea un Pod nuevo para recuperar las tres replicas deseadas'.
+No escribas 'revivio el mismo Pod': el reemplazo es un objeto nuevo.
+
+9. OPCIONAL: MOSTRAR ACTUALIZACION Y OTRO REPLICASET
+
+kubectl -n tarea-grafana rollout restart deployment/grafana
+kubectl -n tarea-grafana rollout status deployment/grafana --timeout=300s
+kubectl -n tarea-grafana get rs
+kubectl -n tarea-grafana rollout history deployment/grafana
+
+CAPTURA 09-rollout.png
+Debe verse un nuevo ReplicaSet activo y el anterior reducido a cero.
+Este reinicio cambia la anotacion de la plantilla; NO cambia la version de Grafana.
+Pie: 'Renovacion progresiva de Pods gestionada por el Deployment'.
+
+10. COMPLETAR INFORME Y REPOSITORIO PUBLICO
+- Completa INFORME-PLANTILLA.txt con datos personales, enlace real, versiones,
+  resultados observados y capturas. Puedes pegar el contenido en Word/Google Docs
+  y exportar a PDF. No entregues los marcadores [COMPLETAR].
+- En GitHub: Add file > Upload files; arrastra la carpeta evidencias con tus PNG.
+- Sube tambien el informe final en PDF. Pulsa Commit changes.
+- Edita README.txt (icono del lapiz) para completar autor, enlace y estado real.
+- Verifica que figure Public y los archivos esten accesibles sin iniciar sesion.
+
+CAPTURA 10-repositorio.png
+Muestra URL, nombre del repo, visibilidad Public y los archivos de la entrega.
+Inserta esa captura en el informe, vuelve a exportar y actualiza el PDF si hace falta.
+El enlace permanente de entrega es el del REPOSITORIO, no el enlace temporal de Grafana.
+
+11. CIERRE
+Solo despues de guardar todas las capturas y completar las pruebas:
+
+kubectl delete namespace tarea-grafana
+
+Este comando borra los recursos DE ESTA PRACTICA y sus datos temporales.
+Tambien puedes dejar que el laboratorio caduque. No necesita captura.
+
+SOLUCION DE PROBLEMAS
+- Repository not found: verifica usuario, nombre exacto del repo y visibilidad Public.
+- instalar.sh no existe: ejecuta ls y entra a la carpeta correcta. Los dos archivos
+  deben estar en la raiz del repo. No subas solo el ZIP.
+- Error con caracteres CRLF en script: ejecuta
+  sed -i 's/\r$//' instalar.sh
+  bash instalar.sh
+- Pending, ImagePullBackOff o timeout: revisa
+  kubectl -n tarea-grafana get pods
+  kubectl -n tarea-grafana describe pod NOMBRE_REAL_DEL_POD
+  kubectl -n tarea-grafana logs deployment/grafana --tail=60
+  kubectl -n tarea-grafana get events --sort-by=.metadata.creationTimestamp
+  Pending puede indicar recursos insuficientes. ImagePullBackOff requiere revisar
+  el mensaje de descarga (red, limites del registro o imagen), no cambiar al azar.
+- Si se olvido la clave: al ser un laboratorio temporal, reinicia el escenario,
+  vuelve a clonar y ejecutar. No exportes el Secret como evidencia publica.
+- Si el puerto 30000 esta ocupado, identifica primero el Service que lo usa:
+  kubectl get svc -A
+  En un playground limpio deberia estar disponible. Puedes cambiar nodePort a
+  30001 en grafana.yaml y actualizar curl y Traffic/Ports a ese mismo puerto.
+- Si NodePort no es accesible pero el Pod esta Ready, usa como alternativa:
+  kubectl -n tarea-grafana port-forward --address 0.0.0.0 service/grafana 3000:3000
+  Deja ese comando activo. En Traffic/Ports abre el puerto 3000.
+  En otra terminal puedes verificar curl http://127.0.0.1:3000/api/health.
+  En el informe distingue esta ruta alternativa (port-forward) del NodePort.
+  Termina port-forward con Ctrl+C antes de borrar Pods o reiniciarlos.
+- Dashboard desaparece o login varia entre replicas: cada replica tiene SQLite
+  y almacenamiento temporal independientes; es una limitacion explicada del lab.
+- Sesion vencida: guarda archivos/capturas fuera del laboratorio; crea una nueva
+  sesion, clona y repite. Los recursos anteriores no se recuperan.
+
+LISTA FINAL
+[ ] Plataforma diferente a la vista en clase.
+[ ] Cluster Ready.
+[ ] YAML publicado y explicado.
+[ ] Deployment y ReplicaSet, con relacion de propietarios demostrada.
+[ ] Pod inicial Running 1/1.
+[ ] Service y acceso HTTP real desde navegador.
+[ ] Escalado a tres replicas.
+[ ] Reemplazo de un Pod con nombre/UID nuevo.
+[ ] Capturas legibles con pies explicativos.
+[ ] Usos de Grafana y limites del laboratorio.
+[ ] Informe completo con URL real del repo publico.
+[ ] Repo accesible sin iniciar sesion, sin claves ni kubeconfig.

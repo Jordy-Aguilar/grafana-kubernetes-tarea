@@ -1,0 +1,144 @@
+PLANTILLA PARA COMPLETAR TRAS EJECUTAR LA PRACTICA
+No presenta resultados ya comprobados. Sustituye los campos y agrega tus capturas.
+
+CONFIGURACION DE CLUSTER KUBERNETES: GRAFANA CON DEPLOYMENT Y REPLICASET
+
+Estudiante: [COMPLETAR]
+Asignatura: [COMPLETAR]
+Docente: [COMPLETAR]
+Fecha de ejecucion: [COMPLETAR]
+Repositorio publico: [PEGAR URL REAL]
+
+1. INTRODUCCION
+La practica propone desplegar Grafana en Kubernetes para estudiar Deployment,
+ReplicaSet y Service. Grafana es una plataforma para visualizar datos y construir
+dashboards. La implementacion usa el laboratorio Kubernetes Playground de
+Killercoda y la imagen oficial grafana/grafana:13.1.3.
+
+2. OBJETIVOS
+Objetivo general: desplegar y exponer Grafana aplicando Deployment y ReplicaSet.
+Objetivos especificos: verificar el cluster, declarar el despliegue en YAML,
+identificar sus controladores, acceder a Grafana, escalar a tres replicas y
+observar la reposicion automatica de un Pod eliminado.
+
+3. ENTORNO Y HERRAMIENTAS
+Laboratorio: Killercoda Kubernetes Playground.
+Version del servidor Kubernetes: [CONSULTAR kubectl version Y COMPLETAR].
+Numero de nodos y sus nombres: [COMPLETAR CON kubectl get nodes].
+Imagen declarada de Grafana: grafana/grafana:13.1.3.
+Namespace: tarea-grafana.
+Archivos: grafana.yaml e instalar.sh.
+Repositorio: [URL REAL].
+[INSERTAR FIGURA 01: cluster y nodos Ready].
+
+4. FUNDAMENTO Y ARQUITECTURA
+Un Pod es la unidad desplegable que ejecuta el contenedor Grafana.
+El Deployment declara el estado deseado y administra los ReplicaSets.
+El ReplicaSet procura mantener la cantidad deseada de Pods. En esta practica
+se crea automaticamente desde el Deployment; no se define otro ReplicaSet manual.
+El Service selecciona Pods con app=grafana y ofrece un punto de acceso estable.
+Ruta de acceso: navegador -> proxy de Killercoda -> NodePort 30000 -> Service
+puerto 3000 -> Pod de Grafana puerto 3000.
+Relacion de control: Deployment grafana -> ReplicaSet grafana-[hash] -> Pods.
+
+5. CONFIGURACION
+El manifiesto contiene Namespace, Deployment y Service. El Deployment inicia
+con replicas: 1 y selector app=grafana, coincidente con las etiquetas del Pod.
+Las probes consultan /api/health para comprobar el inicio y disponibilidad.
+El script crea un Secret para la clave administrativa antes de desplegar.
+La clave no forma parte del manifiesto ni debe publicarse en el repositorio.
+El Service es NodePort: 30000 en el nodo y 3000 en Service/contenedor.
+Se usa emptyDir para almacenamiento temporal de cada Pod.
+[INSERTAR FIGURAS 02a y 02b: configuracion].
+
+6. EJECUCION Y RESULTADOS REALES
+6.1 Despliegue inicial
+Comando principal: bash instalar.sh.
+Estado observado del Deployment: [COMPLETAR].
+Nombre del ReplicaSet: [COMPLETAR].
+Nombre y estado del Pod inicial: [COMPLETAR].
+[INSERTAR FIGURA 03].
+
+6.2 Relacion entre controladores
+Propietario del ReplicaSet segun ownerReferences: [COMPLETAR].
+Propietario del Pod segun ownerReferences: [COMPLETAR].
+[INSERTAR FIGURA 04].
+
+6.3 Exposicion y acceso
+Tipo de Service observado: [COMPLETAR].
+Respuesta HTTP de /api/health: [PEGAR RESULTADO REAL].
+Acceso por navegador: [EXPLICAR LO OBSERVADO].
+Si se uso port-forward, indicarlo aqui y adaptar la ruta de acceso descrita.
+La URL de acceso del laboratorio es temporal; el codigo queda en el repo publico.
+[INSERTAR FIGURAS 05 y 06].
+Si se hizo un dashboard: [EXPLICAR; TestData contiene datos sinteticos y no
+demuestra recoleccion de metricas reales del cluster].
+
+6.4 Escalado
+Comando: kubectl -n tarea-grafana scale deployment grafana --replicas=3.
+Replicas listas antes: [COMPLETAR]. Replicas listas despues: [COMPLETAR].
+Cantidad de Pods Running despues de estabilizar: [COMPLETAR].
+[INSERTAR FIGURA 07].
+
+6.5 Autorrecuperacion
+Nombre y UID del Pod eliminado: [COMPLETAR].
+Nombre y UID del Pod nuevo: [COMPLETAR].
+Cantidad final de replicas listas: [COMPLETAR].
+Interpretacion si se confirma: el ReplicaSet detecta menos Pods que los deseados
+y crea un reemplazo. El Pod nuevo tiene identidad diferente del eliminado.
+[INSERTAR FIGURAS 08a y 08b].
+
+6.6 Renovacion del despliegue (solo si se realizo)
+Comando: kubectl -n tarea-grafana rollout restart deployment/grafana.
+ReplicaSet anterior y nuevo: [COMPLETAR].
+El reinicio cambia la plantilla y genera una nueva revision, manteniendo la
+misma version de imagen. [INSERTAR FIGURA 09, SI APLICA].
+
+7. USOS DE GRAFANA
+- Dashboards de CPU, memoria y red al conectarse a una fuente de metricas.
+- Analisis de registros mediante fuentes compatibles, como Loki.
+- Visualizacion de tiempos de respuesta y errores de aplicaciones.
+- Alertas sobre indicadores operativos.
+- Paneles para analizar datos de negocio desde fuentes compatibles.
+Este despliegue instala Grafana; no configura automaticamente Prometheus,
+Loki ni la captura de metricas de Kubernetes.
+
+8. LIMITACIONES
+El laboratorio y sus URLs son temporales. Cada Pod tiene SQLite y emptyDir
+independientes. Los dashboards pueden perderse al reemplazar un Pod y no se
+comparten entre replicas. Tres Pods demuestran escalado y reconciliacion de
+Kubernetes, pero no una configuracion completa de alta disponibilidad de Grafana.
+Una instalacion de Grafana con datos compartidos entre replicas requiere una
+base MySQL/PostgreSQL compartida y configuracion adicional. El numero de nodos
+observado debe documentarse; replicas en un solo nodo no toleran perder ese nodo.
+
+9. CONCLUSIONES
+[REDACTAR A PARTIR DE TUS RESULTADOS: si se logro desplegar y exponer Grafana,
+como se comprobo Deployment -> ReplicaSet -> Pod, que ocurrio al escalar y al
+eliminar un Pod. No afirmar exito en pruebas que no se completaron].
+
+10. REPOSITORIO PUBLICO
+URL: [URL REAL].
+Contenido: manifiesto, instalador, instrucciones, capturas reales e informe final.
+[INSERTAR FIGURA 10: repositorio Public].
+
+11. REFERENCIAS
+Kubernetes, Deployments:
+https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+Kubernetes, ReplicaSet:
+https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+Kubernetes, acceso por Service:
+https://kubernetes.io/docs/tasks/access-application-cluster/service-access-application-cluster/
+Grafana, instalacion en Kubernetes:
+https://grafana.com/docs/grafana/latest/setup-grafana/installation/kubernetes/
+Grafana, alta disponibilidad:
+https://grafana.com/docs/grafana/latest/setup-grafana/set-up-for-high-availability/
+Killercoda, preguntas frecuentes:
+https://killercoda.com/faq/
+
+SI TAMBIEN PIDEN PRESENTACION
+Puedes organizar 7 diapositivas: 1 portada/objetivo; 2 arquitectura y usos;
+3 configuracion YAML; 4 despliegue y controladores; 5 acceso a Grafana;
+6 escalado y autorrecuperacion; 7 conclusiones, limitaciones y enlace publico.
+Usa las mismas capturas reales del informe. La consigna compartida exige informe;
+una presentacion adicional depende de lo que haya solicitado el docente.
